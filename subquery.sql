@@ -109,7 +109,6 @@ Orders table.
 Tables involved: Sales.Orders
 Output: orderid, orderdate, custid, empid
 */
-
 select o.orderid, o.orderdate, o.custid, o.empid
 from sales.Orders as o
 where o.orderdate in (
@@ -123,7 +122,6 @@ orders. Note that more than one customer might have the same number of orders.
 Tables involved: Sales.Orders
 Output: custid, orderid, orderdate, empid
 */
-
 select o.custid, o.orderid, o.orderdate, o.empid
 from sales.Orders as o
 where o.custid in (
@@ -138,7 +136,6 @@ where o.custid in (
 Tables involved: HR.Employees and Sales.Orders
 Output: empid, FirstName, lastname
 */
-
 select e.empid, e.firstname, e.lastname
 from hr.Employees as e
 where not exists (
@@ -153,7 +150,6 @@ where not exists (
 Tables involved: Sales.Customers and HR.Employees
 Output: country
 */
-
 select c.country from sales.Customers as c
 where c.country not in (
 	select e.country
@@ -166,7 +162,6 @@ group by c.country
 Tables involved: Sales.Orders
 Output: custid, orderid, orderdate, empid
 */
-
 select o.custid, o.orderid, o.orderdate, o.empid 
 from sales.Orders as o
 where o.orderdate = (
@@ -183,7 +178,6 @@ order by o.custid
 Tables involved: Sales.Customers and Sales.Orders
 Output: custid, companyname
 */
-
 select c.custid, c.companyname
 from sales.customers as c
 where exists (
@@ -225,15 +219,40 @@ where c.custid in (
 	)
 )
 
+select c.custid, c.companyname
+from sales.Customers as c
+where exists (
+	select *
+	from sales.Orders as o
+	where exists (
+		select *
+		from sales.OrderDetails as od
+		where o.orderid = od.orderid and od.productid = 12
+	) and c.custid = o.custid
+)
+
 /*
 8. Write a query that calculates a running-total quantity for each customer and month.
 Tables involved: Sales.CustOrders
 Output: custid, ordermonth, qty, runqty
 */
-
 select o.custid, o.ordermonth, o.qty, (
 	select sum(od.qty) from sales.CustOrders as od
 	where od.ordermonth <= o.ordermonth and o.custid = od.custid
 ) as runqty
 from sales.CustOrders as o
 order by o.ordermonth
+
+-- year, custy, custyprec, custdiff
+select distinct year(o.orderdate), (
+	select count(distinct od.custid) from sales.Orders as od
+	where year(o.orderdate) = year(od.orderdate)
+) as custy, (
+	select count(distinct od.custid) from sales.Orders as od
+	where year((SELECT max(o2.orderdate) FROM sales.Orders as o2 WHERE o2.orderdate < od.orderdate))
+	= 
+	year((SELECT max(o2.orderdate) FROM sales.Orders as o2 WHERE o2.orderdate < o.orderdate))
+	
+) as custydiff
+from sales.Orders as o
+
