@@ -122,9 +122,13 @@ Tables involved: Sales.Customers, Sales.Orders, and Sales.OrderDetails
 Output: custid, numorders, totalqty
 */
 
-select c.custid
+select c.custid, count(o.orderid) as numorders, sum(qty) as totalqty
 from 
 	sales.Customers as c
-inner join 
+left outer join 
 	sales.Orders as o
-on o.custid = c.custid
+on c.custid = o.custid
+left outer join sales.OrderDetails as od
+on o.orderid = od.orderid
+group by c.custid 
+order by c.custid
