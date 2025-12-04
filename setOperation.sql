@@ -1,6 +1,5 @@
 -- Set Operation
 
-
 -- UNION Operator	   -- toglie i duplicati
 -- UNION ALL Operator -- tiene i duplicati
 
@@ -93,9 +92,11 @@ and February 2016 but not in 2015.
 Tables involved: Sales.Orders
 Output: custid, empid
 */
+(
 select distinct o.custid, o.empid from sales.Orders as o where o.orderdate between '20160101' and eomonth('20160101')
 intersect
 select distinct o.custid, o.empid from sales.Orders as o where o.orderdate between '20160201' and eomonth('20160201')
+)
 except
 select distinct o.custid, o.empid from sales.Orders as o where o.orderdate between '20150101' and eomonth('20151201')
 
@@ -125,3 +126,11 @@ select * from (SELECT country, region, city
 FROM Production.Suppliers
 order by country, region, city
 offset 0 row) as sup
+
+SELECT country, region, city, 1 as n
+FROM HR.Employees
+UNION ALL
+SELECT country, region, city, 2 as n
+FROM Production.Suppliers
+order by n, country, region, city
+
