@@ -146,7 +146,8 @@ AS (
 with findEmps as (
 	select empid, mgrid, firstname, lastname from hr.Employees
 	where empid = 2 
-	-- questo valore verrà aumentato dopo che la query sottostante non trova più dati da aggiungere a questo valore e il p diventa la tabella uscita dalla query
+	-- questo valore verrà aumentato dopo che la query sottostante non trova più dati da aggiungere a questo valore
+    -- e il p diventa la tabella uscita dalla query
 	UNION ALL
 	select c.empid, c.mgrid, c.firstname, c.lastname 
 	from findEmps as p
@@ -220,7 +221,7 @@ order by empid desc;
 
 create view sales.USACusts
 AS
-select custid, companyname, contacttitle, address, city, region, postalcode, country
+select custid, companyname, contacttitle, contactname, phone, address, city, region, postalcode, country
 from sales.Customers
 where country='USA';
 
@@ -255,10 +256,83 @@ exec sp_helptext 'Sales.USACusts';
 
 alter view sales.USACusts with schemabinding
 AS
-select custid, companyname, contacttitle, address, city, region, postalcode, country
+select custid, companyname, contacttitle, contactname, phone, address, city, region, postalcode, country
 from sales.Customers
-where country='USA';
+where country='USA'
+with check option -- con questo risolviamo il problema del paese sbagliato
 
 alter table sales.customers drop column address;
 
+-- insert using view
+insert into sales.USACusts(companyname, contacttitle, contactname, phone, address, city, region, postalcode, country)
+values ('a', 'a', 'a', 'a', 'a', '33', 'a', '12345', 'USA')
+
+select * from sales.USACusts;
+
+insert into sales.USACusts(companyname, contacttitle, contactname, phone, address, city, region, postalcode, country)
+values ('a', 'a', 'a', 'a', 'a', '33', 'a', '12345', 'UK') -- questo viene aggiunto anche se non lo vogliamo
+
 -- dml through view
+
+
+-- Table-Valued Function
+-- t-sql
+create function dbo.GetCustOrders(@cid as int)
+returns table
+return
+select * from sales.Orders where custid = @cid
+
+select * from dbo.GetCustOrders(1) as o
+
+select o.orderid, od.qty from dbo.GetCustOrders(1) as o
+join sales.OrderDetails as od
+on o.orderid = od.orderid
+go
+
+
+/*
+4-1. Create a view that returns the total quantity for each employee and year.
+Tables involved: Sales.Orders and Sales.OrderDetails
+SELECT * FROM Sales.VEmpOrders ORDER BY empid, orderyear;
+Output: empid, orderyear, qty
+*/
+create view sales.VEmpOrders as 
+select distinct empid, sum(qty) as qtyByYear, year(o.orderdate) as orderyear
+from sales.Orders as o inner join sales.OrderDetails as od
+on o.orderid = od.orderid
+group by empid, year(o.orderdate);
+
+/*
+4-2. Write a query against Sales.VEmpOrders that returns the running total quantity for each employee
+and year.
+Tables involved: Sales.VEmpOrders view
+Output: empid, orderyear, qty, runqty
+*/
+select empid, orderyear, qtyByYear, (
+	select sum(od.qtyByYear) from sales.VEmpOrders as od
+	where od.orderyear <= o.orderyear and o.empid = od.empid
+) as runqty
+from sales.VEmpOrders as o
+order by o.empid, o.orderyear
+
+/*
+5-1. Create an inline function that accepts as inputs a supplier ID (@supid AS INT) and a requested number of products 
+(@n AS INT). The function should return @n products with the highest unit prices that are supplied by the specified 
+supplier ID.
+Tables involved: Production.Products
+SELECT * FROM Production.TopProducts(5, 2);
+Output: productid, productname, unitprice
+*/
+drop function production.TopProducts
+
+create function Production.TopProducts(@supid AS INT, @n AS INT)
+returns table
+return
+	select top(@n) with ties p.productid, p.productname, p.unitprice
+	from production.Products as p
+	where p.supplierid = @supid
+	order by p.unitprice desc;
+
+SELECT * FROM Production.TopProducts(12, 6);
+
+select * from production.products where supplierid = 12
