@@ -109,7 +109,7 @@ on c.custid = o.custid
 where c.country = 'USA';
 
 
--- UPDATE
+--      UPDATE
 
 /*
     update tbname
@@ -128,7 +128,7 @@ set discount += +0.05
 from sales.OrderDetails as od inner join sales.Orders as o on od.orderid = o.orderid
 where o.custid = 1
 
--- MERGE
+--      MERGE
 
 /*
         database oltp
@@ -158,11 +158,41 @@ merge into customersdwh as TGT
 using sales.customers as SRC
 on TGT.custid = SRC.custid
 when matched THEN
-update SET
+update SET      -- bisogna per forza scrivere tutti i campi, l'* non funziona
     tgt.companyname = src.companyname,
     tgt.city = src.city
 when not matched THEN
 insert (custid, companyname, phone, address)
 values (src.custid, src.companyname, src.phone, src.address);
 
--- OUTPUT
+--      OUTPUT Clause
+
+-- insert with output
+insert into t1 (datacol) 
+output inserted.keycol, inserted.datacol
+values ('aaaa')
+
+-- delite with output
+delete from t1
+output deleted.keycol, deleted.datacol
+
+-- update with output
+update sales.orderDetails
+set discount += 0.05
+output inserted.productid,
+deleted.discount as olddiscount,
+inserted.discount as newdiscount
+where productid = 51
+
+-- merge with output
+merge into customersdwh as TGT 
+using sales.customers as SRC
+on TGT.custid = SRC.custid
+when matched THEN
+update SET      -- bisogna per forza scrivere tutti i campi, l'* non funziona
+    tgt.companyname = src.companyname,
+    tgt.city = src.city
+when not matched THEN
+insert (custid, companyname, phone, address)
+values (src.custid, src.companyname, src.phone, src.address)
+output $action as theaction, inserted.custid, deleted.companyname;
