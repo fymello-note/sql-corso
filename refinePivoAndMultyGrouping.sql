@@ -55,3 +55,47 @@ select empid, a, b from
 (select empid, custid, qty from dbo.Orders1) as D
 PIVOT (sum(qty) for custid in (a, b)) as P
 
+-- Multiple grouping
+
+select empid, custid, SUM(qty) as sumqty
+from dbo.Orders1
+group by empid, custid
+UNION ALL
+select empid, null, SUM(qty) as sumqty
+from dbo.Orders1
+group by empid
+union all
+select null, custid, SUM(qty) as sumqty
+from dbo.Orders1
+group by custid
+union all
+select null, null, SUM(qty) as sumqty
+from dbo.Orders1
+
+-- and a native approach using GROUPING SETS
+
+select empid, custid, SUM(qty) as sumqty
+from dbo.Orders1
+group by
+grouping sets ((empid, custid), (empid), (custid), ())
+
+-- è molto dispendiosa perché combina tutte le colonne che menzioniamo
+select empid, custid, SUM(qty) as sumqty
+from dbo.Orders1
+group by cube(empid, custid)
+
+-- è meno dispendiosa della cude perché combina le colonne che menzioniamo da sinistra a destra
+select year(orderdate) as orderyear, month(orderdate) as ordermonth, day(orderdate) as orderday, sum(qty) as sumqty
+from dbo.Orders1
+group by rollup(year(orderdate), month(orderdate), day(orderdate))
+
+-- identifying group level
+select GROUPING(empid) as grpemp, GROUPING(custid) as grpcust, empid, custid, sum(qty) as sumqty
+from dbo.orders1
+group by cube(empid, custid)
+order by grpemp, grpcust
+
+-- questo lo fa in binario, per la lettura non va molto bene
+select GROUPING_ID(empid, custid) as gropingset, empid, custid, sum(qty) as sumqty
+from dbo.orders1
+group by cube(empid, custid)
