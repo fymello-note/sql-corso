@@ -118,8 +118,155 @@ begin
 end
 
 select @ResultSum as totalSum;
+print @ResultSum;
 
 close cur;
 deallocate cur;
 
--- dove viene salvata la tabella  nella variabile, nella memoria ram o è un puntatore?
+-- Function
+-- table-valued function
+-- -> quella vista in precendenza.
+
+
+------------------
+go --- separator
+------------------
+-- scalar function
+
+create function dbo.GetAge(@BIRTHDAY as DATE, @eventday as DATE)
+returns int as begin 
+    return datediff(year, @BIRTHDAY, @eventday);
+end
+------------------
+go --- separator
+------------------
+
+select empid, firstname, lastname, dbo.GetAge(birthdate, SYSDATETIME()) from hr.Employees
+
+-- Procedures
+
+------------------
+go --- separator
+------------------
+create procedure myGetCustOrders
+    @custid as int,
+    @fromdate as date = '20100101',
+    @todate as date = '20201231',
+    @numrows as int output
+as
+    select * from sales.Orders
+    where custid = @custid and orderdate >= @fromdate and orderdate <= @todate;
+
+    set @numrows = @@ROWCOUNT;
+
+declare @rc as int;
+exec myGetCustOrders @custid = 1, @numrows = @rc output;
+
+select @rc as numrows;
+------------------
+go --- separator
+------------------
+
+-- Trigger
+/*
+    eventi validi: DML (INSERT, DELETE, UPDATE)
+*/
+
+create table ttt1 (
+    keycol int not null primary key,
+    datacol varchar (10) not null
+)
+
+create table ttt1_audit (
+    audit_lsn int not null identity primary key,
+    dt datetime not null default (sysdatetime()),
+    login_name sysname not null default (original_login()),
+    keycol int not null,
+    datacol varchar(10) not null,
+    outcome char(1) not null default ('Y')
+)
+
+------------------
+go --- separator
+------------------
+create TRIGGER trg_ttt1_insert_audit on dbo.ttt1 after insert as
+insert into ttt1_audit (keycol, datacol)
+select keycol, datacol from inserted
+------------------
+go --- separator
+------------------
+
+insert into ttt1 (keycol, datacol) values (1, 'aaa')
+
+select * from ttt1_audit;
+select * from ttt1;
+
+-- Error handling
+begin try
+    insert into ttt1 values (1, 'aaa')
+end try
+begin catch
+    if ERROR_NUMBER() = 2627
+    begin
+        print 'pk violated';
+    end
+end catch
+
+
+/*
+1. Create a Stored Procedure with Parameters
+
+Write a SQL query to create a stored procedure that takes parameters and returns results.
+
+Create a stored procedure called GetEmployeesByDepartment that takes a DepartmentID in input, returning the list of Employees in that department. Test the invocation of the procedure.
+
+CREATE TABLE Employees (
+	..
+	DepartmentID ..
+)
+*/
+CREATE TABLE EmployeesM (
+    custid int not null identity primary key, 
+	DepartmentID int not null,
+    datacust varchar(20) not null
+)
+
+go
+create procedure SetEmployeesByDepartment
+    @departmentid as int,
+    @datacust as varchar(20)
+as
+    insert into EmployeesM (DepartmentID, datacust) values (@departmentid, @datacust)
+    select * from EmployeesM;
+
+
+exec SetEmployeesByDepartment @departmentid = 29, @datacust = 'a'
+exec SetEmployeesByDepartment @departmentid = 28, @datacust = 'a'
+exec SetEmployeesByDepartment @departmentid = 8, @datacust = 'a'
+exec SetEmployeesByDepartment @departmentid = 29, @datacust = 'a'
+
+go
+create procedure GetEmployeesByDepartment
+    @departmentid as int
+as
+    select * from EmployeesM where DepartmentID = @departmentid;
+
+exec GetEmployeesByDepartment @departmentid = 29; 
+
+/*
+2. Execute a Stored Procedure with Output Parameters
+
+Write a SQL query to create and execute a stored procedure that uses output parameters. 
+Write a procedure called GetEmployeeCountByDepartment that receives in input DepartmentID and return in output the number of Employees in that department. Test the procedure.
+*/
+go
+create procedure GetEmployeesCountByDepartment
+    @departmentid as int,
+    @numrows as int output
+as
+    select @numrows = (select count (*) from EmployeesM where DepartmentID = @departmentid);
+
+declare @rc as int;
+exec GetEmployeesCountByDepartment @departmentid = 1, @numrows = @rc output;
+
+select @rc;
